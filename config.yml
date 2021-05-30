@@ -1,0 +1,21 @@
+# Bot config
+
+prefix: "$"
+token: ""
+authorized_users:
+  - 
+bot_owner: 
+
+mysql:
+  Host: "" # IP address of MySQL server
+  Port: 3306 # Port of MySQL server
+  Database: "" # Database name
+  Username: "" # Username to connect to database
+  Password: "" # Password to connect to database
+
+lyrics:
+  genius_access_token: ""
+
+spotify:
+  client_id: ""
+  client_secret: ""
