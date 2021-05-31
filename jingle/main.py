@@ -1,5 +1,7 @@
 import discord
 from jingle import prefix
+from discord_components import DiscordComponents, Button, ButtonStyle, InteractionType
+
 serverprefix = prefix.serverprefix
 
 version = "0.9.1"
@@ -24,6 +26,6 @@ async def help(ctx, command):
     embed.add_field(name=":twisted_rightwards_arrows: Shuffle", value="`{0}shuffle`\nShuffle the queue".format(prefix), inline=True)
     embed.add_field(name=":page_facing_up: Lyrics", value="`{0}lyrics`\nGet lyrics for the currently playing song".format(prefix), inline=True)
     embed.add_field(name=":gear: Settings", value="`{0}settings`\nConfigure the bot's settings for this server".format(prefix), inline=True)
-    embed.add_field(name="Links", value="[Website](https://jingle.kdgaming.net) | [Privacy](https://nwsbot.kdgaming.net/privacy)", inline=False)
+    # embed.add_field(name="Links", value="[Website](https://jingle.kdgaming.net) | [Privacy](https://nwsbot.kdgaming.net/privacy)", inline=False)
     embed.set_footer(text="Jingle v{0} | Developed by Kooldude183#4986 | Website: https://jingle.kdgaming.net".format(version))
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed, components=[[Button(style=5, label="Website", url="https://jingle.kdgaming.net"), Button(style=5, label="Privacy", url="https://nwsbot.kdgaming.net/privacy")]])

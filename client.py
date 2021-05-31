@@ -8,6 +8,7 @@ from discord.ext.commands import CommandNotFound
 from discord_slash import SlashCommand, SlashContext
 from discord_slash.utils.manage_commands import create_option
 from importlib import reload
+from discord_components import DiscordComponents, Button, ButtonStyle, InteractionType
 
 dbconn = db.dbconn
 
@@ -37,6 +38,8 @@ async def on_ready():
     print("Bot is now running")
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="{0}help".format(defprefix)))
     await dbconn("createtables", "", "")
+    DiscordComponents(client)
+    await player.startThreads(client)
 
 @client.event
 async def on_message(message):
@@ -118,20 +121,20 @@ async def join(ctx, arg=None):
 @slash.slash(name="q", description="List the song queue")
 async def q(ctx:SlashContext):
     await prefix.serverprefix(ctx)
-    await player.fetchqueue(ctx)
+    await player.fetchqueue(ctx, client)
 
 @client.command()
 async def q(ctx):
-    await player.fetchqueue(ctx)
+    await player.fetchqueue(ctx, client)
 
 @slash.slash(name="queue", description="List the song queue")
 async def queue(ctx:SlashContext):
     await prefix.serverprefix(ctx)
-    await player.fetchqueue(ctx)
+    await player.fetchqueue(ctx, client)
 
 @client.command()
 async def queue(ctx):
-    await player.fetchqueue(ctx)
+    await player.fetchqueue(ctx, client)
 
 @slash.slash(name="dc", description="Disconnect the bot")
 async def dc(ctx:SlashContext):
