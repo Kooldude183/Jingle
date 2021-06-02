@@ -121,20 +121,20 @@ async def join(ctx, arg=None):
 @slash.slash(name="q", description="List the song queue")
 async def q(ctx:SlashContext):
     await prefix.serverprefix(ctx)
-    await player.fetchqueue(ctx, client)
+    await player.fetchqueue(ctx, client, 0, 1)
 
 @client.command()
 async def q(ctx):
-    await player.fetchqueue(ctx, client)
+    await player.fetchqueue(ctx, client, 0, 1)
 
 @slash.slash(name="queue", description="List the song queue")
 async def queue(ctx:SlashContext):
     await prefix.serverprefix(ctx)
-    await player.fetchqueue(ctx, client)
+    await player.fetchqueue(ctx, client, 0, 1)
 
 @client.command()
 async def queue(ctx):
-    await player.fetchqueue(ctx, client)
+    await player.fetchqueue(ctx, client, 0, 1)
 
 @slash.slash(name="dc", description="Disconnect the bot")
 async def dc(ctx:SlashContext):

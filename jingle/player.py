@@ -6,6 +6,7 @@ from youtube_dl import YoutubeDL
 from youtubesearchpython.__future__ import VideosSearch, Video, Playlist
 from spotipy.oauth2 import SpotifyClientCredentials
 from discord_components import DiscordComponents, Button, ButtonStyle, InteractionType
+from discord import PartialEmoji
 
 dbconn = db.dbconn
 serverprefix = prefix.serverprefix
@@ -25,6 +26,13 @@ ydl_opts_pl = {'format': 'bestaudio/best', 'youtube_include_dash_manifest': Fals
 
 stopped = []
 skipped = []
+
+async def queuebuttons(cpg, pgs):
+    prevdisabled = False
+    nextdisabled = False
+    if cpg == 1: prevdisabled = True
+    if cpg == pgs: nextdisabled = True
+    return [[Button(style=ButtonStyle.blue, id="previous queue {0}".format(cpg), label="❮", disabled=prevdisabled), Button(style=ButtonStyle.grey, id="page queue", label="Page {0} / {1}".format(cpg, pgs), disabled=True), Button(style=ButtonStyle.blue, id="next queue {0}".format(cpg), label="❯", disabled=nextdisabled), Button(style=ButtonStyle.blue, id="refresh queue", label="Refresh", emoji=PartialEmoji(name="🔄"))], [Button(style=ButtonStyle.green, id="loop queue", label="Loop", emoji=PartialEmoji(name="🔁")), Button(style=ButtonStyle.green, id="shuffle queue", label="Shuffle", emoji=PartialEmoji(name="🔀")), Button(style=ButtonStyle.red, id="clear queue", label="Clear", emoji=PartialEmoji(name="⭕"))]]
 
 async def getintidofcurrentsong(ctx):
     try: queue = await dbconn("fetchqueue", "", ctx.guild.id)
@@ -247,7 +255,7 @@ async def startqueue(ctx, info, player):
             try: videourl
             except: continue
         embed = discord.Embed(title="Now Playing", description="{0} [{1}]({2}) `[{3}]`".format(serviceicon, queue[current][2], queue[current][3], duration), color=discord.Color.blue())
-        songinfo = await ctx.channel.send(embed=embed, components=[[Button(style=ButtonStyle.green, id="pause np", label="Pause"), Button(style=ButtonStyle.red, id="stop np", label="Stop"), Button(style=ButtonStyle.blue, id="skip np", label="Skip"), Button(style=ButtonStyle.grey, id="lyrics np", label="Lyrics"), Button(style=ButtonStyle.grey, id="queue np", label="Queue")]])
+        songinfo = await ctx.channel.send(embed=embed, components=[[Button(style=ButtonStyle.green, id="pause np", label="Pause", emoji=PartialEmoji(name="⏸")), Button(style=ButtonStyle.red, id="stop np", label="Stop", emoji=PartialEmoji(name="⏹")), Button(style=ButtonStyle.blue, id="skip np", label="Skip", emoji=PartialEmoji(name="⏭")), Button(style=ButtonStyle.grey, id="lyrics np", label="Lyrics", emoji=PartialEmoji(name="📄")), Button(style=ButtonStyle.grey, id="queue np", label="Queue", emoji=PartialEmoji(name="📃"))]])
         try: player.play(discord.FFmpegOpusAudio(videourl, options="-vn -filter:a \"volume=0.2\" -b:a 192k", before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"))
         except Exception as e:
             await songinfo.delete()
@@ -266,10 +274,10 @@ async def startqueue(ctx, info, player):
             while player.is_playing(): await asyncio.sleep(0.1)
             paused, intid = await checkifpaused(ctx)
             if paused:
-                await songinfo.edit(embed=embed, components=[[Button(style=ButtonStyle.green, id="resume np", label="Resume"), Button(style=ButtonStyle.red, id="stop np", label="Stop"), Button(style=ButtonStyle.blue, id="skip np", label="Skip"), Button(style=ButtonStyle.grey, id="lyrics np", label="Lyrics"), Button(style=ButtonStyle.grey, id="queue np", label="Queue")]])
+                await songinfo.edit(embed=embed, components=[[Button(style=ButtonStyle.green, id="resume np", label="Resume", emoji=PartialEmoji(name="▶")), Button(style=ButtonStyle.red, id="stop np", label="Stop", emoji=PartialEmoji(name="⏹")), Button(style=ButtonStyle.blue, id="skip np", label="Skip", emoji=PartialEmoji(name="⏭")), Button(style=ButtonStyle.grey, id="lyrics np", label="Lyrics", emoji=PartialEmoji(name="📄")), Button(style=ButtonStyle.grey, id="queue np", label="Queue", emoji=PartialEmoji(name="📃"))]])
                 intidcheck = intid
                 while paused:
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.5)
                     if ctx.guild.id in stopped:
                         stopped.remove(ctx.guild.id)
                         return
@@ -281,7 +289,7 @@ async def startqueue(ctx, info, player):
                     break
                 intid = await getintidofcurrentsong(ctx)
                 if not intid == intidcheck: return
-                await songinfo.edit(embed=embed, components=[[Button(style=ButtonStyle.green, id="pause np", label="Pause"), Button(style=ButtonStyle.red, id="stop np", label="Stop"), Button(style=ButtonStyle.blue, id="skip np", label="Skip"), Button(style=ButtonStyle.grey, id="lyrics np", label="Lyrics"), Button(style=ButtonStyle.grey, id="queue np", label="Queue")]])
+                await songinfo.edit(embed=embed, components=[[Button(style=ButtonStyle.green, id="pause np", label="Pause", emoji=PartialEmoji(name="⏸")), Button(style=ButtonStyle.red, id="stop np", label="Stop", emoji=PartialEmoji(name="⏹")), Button(style=ButtonStyle.blue, id="skip np", label="Skip", emoji=PartialEmoji(name="⏭")), Button(style=ButtonStyle.grey, id="lyrics np", label="Lyrics", emoji=PartialEmoji(name="📄")), Button(style=ButtonStyle.grey, id="queue np", label="Queue", emoji=PartialEmoji(name="📃"))]])
                 player.resume()
             else: break
         await songinfo.delete()
@@ -294,13 +302,17 @@ async def startqueue(ctx, info, player):
             return
         if not ctx.guild.voice_client: return
 
-async def fetchqueue(ctx, client):
+async def fetchqueue(ctx, client, page, mode):
+    default = False
+    if page == 0: default = True
     try: queue = await dbconn("fetchqueue", "", ctx.guild.id)
     except Exception as e:
         try:
             await ctx.send("An exception has occurred: ```{0}```".format(e))
             await ctx.send(embed=discord.Embed(description="Unable to fetch the queue.", color=discord.Color.red()))
-        except: return
+        except:
+            await ctx.channel.send("An exception has occurred: ```{0}```".format(e))
+            await ctx.channel.send(embed=discord.Embed(description="Unable to fetch the queue.", color=discord.Color.red()))
         return
     try: 
         current = await dbconn("getvalue", "SELECT * FROM `settings` WHERE `guild_id` = '{0}'".format(ctx.guild.id), 3)
@@ -309,11 +321,14 @@ async def fetchqueue(ctx, client):
         try:
             await ctx.send("An exception has occurred: ```{0}```".format(e))
             await ctx.send(embed=discord.Embed(description="Unable to fetch the current position in the queue.", color=discord.Color.red()))
-        except: return
+        except:
+            await ctx.channel.send("An exception has occurred: ```{0}```".format(e))
+            await ctx.channel.send(embed=discord.Embed(description="Unable to fetch the current position in the queue.", color=discord.Color.red()))
         return
     songs = ""
+    displayedsongs = ""
     index = 0
-    overflow = 0
+    currentpage = 0
     for song in queue:
         index += 1
         indent = "     "
@@ -322,6 +337,7 @@ async def fetchqueue(ctx, client):
         if float(current) == index and ctx.guild.voice_client:
             if not ctx.guild.voice_client.is_playing(): return
             nowplaying = ":arrow_forward: "
+            if default == True: page = currentpage + 1
         hours = 0
         minutes = 0
         seconds = round(int(song[4]) / 1000)
@@ -336,11 +352,30 @@ async def fetchqueue(ctx, client):
         if len(str(seconds)) == 1: seconds = "0{0}".format(seconds)
         if not hours == 0: duration = "{0}:{1}:{2}".format(hours, minutes, seconds)
         else: duration = "{0}:{1}".format(minutes, seconds)
-        line = "\n{0}.{1}{2}{3} `[{4}]`".format(index, indent, nowplaying, song[2], duration)
-        if not len(songs) + len(line) > 2048: songs += line
-        else:
-            overflow = len(queue) - index + 1
-            break
+        songtitle = song[2]
+        if "*" in songtitle: songtitle = songtitle.replace("*", "\*")
+        line = "\n{0}.{1}{2}{3} `[{4}]`".format(index, indent, nowplaying, songtitle, duration)
+        if len(songs) + len(line) > 2048:
+            if default == True:
+                if ":arrow_forward:" in songs:
+                    displayedsongs = songs
+                    songs = ""
+                    currentpage += 1
+                else:
+                    songs = ""
+                    currentpage += 1
+            elif not currentpage + 1 == page:
+                songs = ""
+                currentpage += 1
+            else:
+                displayedsongs = songs
+                songs = ""
+                currentpage += 1
+        songs += line
+    if displayedsongs == "":
+        displayedsongs = songs
+    if page == 0: page = 1
+    currentpage += 1
     try: shufflemode = await dbconn("getvalue", "SELECT * FROM `settings` WHERE `guild_id` = '{0}'".format(ctx.guild.id), 5)
     except: queuetitle = "Queue"
     try: int(shufflemode)
@@ -348,12 +383,13 @@ async def fetchqueue(ctx, client):
     else:
         if int(shufflemode) == 1: queuetitle = "Shuffled Queue"
         else: queuetitle = "Queue"
-    embed = discord.Embed(title=queuetitle, description=songs, color=discord.Color.blue())
-    if not overflow == 0:
-        embed.set_footer(text="and {0} more".format(overflow))
+    embed = discord.Embed(title=queuetitle, description=displayedsongs, color=discord.Color.blue())
+    embed.set_footer(text="{0} tracks".format(len(queue)))
     rs = ''.join(random.choice(string.ascii_letters) for i in range(24))
-    try: await ctx.send(embed=embed, components=[[Button(style=ButtonStyle.blue, id="pp queue", label="Previous Page", disabled=True), Button(style=ButtonStyle.blue, id="pp queue", label="Next Page", disabled=True), Button(style=ButtonStyle.green, id="loop queue", label="Loop"), Button(style=ButtonStyle.green, id="shuffle queue", label="Shuffle"), Button(style=ButtonStyle.red, id="clear queue", label="Clear")]])
-    except: await ctx.channel.send(embed=embed, components=[[Button(style=ButtonStyle.blue, id="pp queue", label="Previous Page", disabled=True), Button(style=ButtonStyle.blue, id="pp queue", label="Next Page", disabled=True), Button(style=ButtonStyle.green, id="loop queue", label="Loop"), Button(style=ButtonStyle.green, id="shuffle queue", label="Shuffle"), Button(style=ButtonStyle.red, id="clear queue", label="Clear")]])
+    if mode == 1:
+        try: await ctx.send(embed=embed, components=await queuebuttons(page, currentpage))
+        except: await ctx.channel.send(embed=embed, components=await queuebuttons(page, currentpage))
+    else: return embed, page, currentpage
 
 async def addtoshufflequeue(ctx, info):
     try:
@@ -1374,8 +1410,6 @@ async def buttonfetchqueue(ctx, client):
     if not overflow == 0:
         embed.set_footer(text="and {0} more".format(overflow))
     return embed
-    # try: await ctx.send(embed=embed, components=[[Button(style=ButtonStyle.blue, id="pp queue{0}".format(rs), label="Previous Page", disabled=True), Button(style=ButtonStyle.blue, id="pp queue{0}".format(rs), label="Next Page", disabled=True), Button(style=ButtonStyle.green, id="loop queue".format(rs), label="Loop"), Button(style=ButtonStyle.green, id="shuffle queue".format(rs), label="Shuffle")]])
-    # except: await ctx.channel.send(embed=embed, components=[[Button(style=ButtonStyle.blue, id="pp queue{0}".format(rs), label="Previous Page", disabled=True), Button(style=ButtonStyle.blue, id="pp queue{0}".format(rs), label="Next Page", disabled=True), Button(style=ButtonStyle.green, id="loop queue".format(rs), label="Loop"), Button(style=ButtonStyle.green, id="shuffle queue".format(rs), label="Shuffle")]])
 
 async def buttons(client, response):
     buttonid = response.component.id
@@ -1439,7 +1473,7 @@ async def buttons(client, response):
                 return
     if "queue np" in buttonid:
         await response.respond(type=6)
-        try: await fetchqueue(response, client)
+        try: await fetchqueue(response, client, 0, 1)
         except: return
     if "loop queue" in buttonid:
         await response.respond(type=6)
@@ -1455,25 +1489,47 @@ async def buttons(client, response):
             await response.channel.send(embed=discord.Embed(description="Unable to shuffle the queue.", color=discord.Color.red()))
         elif result == "shuffled":
             await response.channel.send(embed=discord.Embed(description="Shuffled the queue.", color=discord.Color.green()))
-            await response.respond(type=7, embed=await buttonfetchqueue(response, client), components=[[Button(style=ButtonStyle.blue, id="pp queue{0}", label="Previous Page", disabled=True), Button(style=ButtonStyle.blue, id="pp queue{0}", label="Next Page", disabled=True), Button(style=ButtonStyle.green, id="loop queue", label="Loop"), Button(style=ButtonStyle.green, id="shuffle queue", label="Shuffle"), Button(style=ButtonStyle.red, id="clear queue", label="Clear")]])
+            embed, cpg, pgs = await fetchqueue(response, client, 0, 2)
+            await response.message.edit(embed=embed, components=await queuebuttons(cpg, pgs))
         else:
             await response.channel.send(embed=discord.Embed(description="Unable to shuffle the queue.", color=discord.Color.red()))
+    if "refresh queue" in buttonid:
+        embed, cpg, pgs = await fetchqueue(response, client, 0, 2)
+        await response.respond(type=7, embed=embed, components=await queuebuttons(cpg, pgs))
     if "clear queue" in buttonid:
         vc = response.guild.voice_client
         if not vc:
             await response.respond(embed=discord.Embed(description="The bot is not currently in a voice channel", color=discord.Color.red()))
             return
         try: await clearqueue(response)
-        except Exception as e:
+        except:
             await response.respond(embed=discord.Embed(description="Unable to clear the queue.", color=discord.Color.red()))
             return
-        await response.respond(type=7, embed=await buttonfetchqueue(response, client), components=[[Button(style=ButtonStyle.blue, id="pp queue{0}", label="Previous Page", disabled=True), Button(style=ButtonStyle.blue, id="pp queue{0}", label="Next Page", disabled=True), Button(style=ButtonStyle.green, id="loop queue", label="Loop"), Button(style=ButtonStyle.green, id="shuffle queue", label="Shuffle"), Button(style=ButtonStyle.red, id="clear queue", label="Clear")]])
+        embed, cpg, pgs = await fetchqueue(response, client, 0, 2)
+        await response.respond(type=7, embed=embed, components=await queuebuttons(cpg, pgs))
+    if "previous queue" in buttonid:
+        vc = response.guild.voice_client
+        cpg = int(buttonid.replace("previous queue ", ""))
+        if not vc:
+            await response.respond(embed=discord.Embed(description="The bot is not currently in a voice channel", color=discord.Color.red()))
+            return
+        embed, cpg, pgs = await fetchqueue(response, client, cpg - 1, 2)
+        await response.respond(type=7, embed=embed, components=await queuebuttons(cpg, pgs))
+    if "next queue" in buttonid:
+        vc = response.guild.voice_client
+        cpg = int(buttonid.replace("next queue ", ""))
+        if not vc:
+            await response.respond(embed=discord.Embed(description="The bot is not currently in a voice channel", color=discord.Color.red()))
+            return
+        embed, cpg, pgs = await fetchqueue(response, client, cpg + 1, 2)
+        await response.respond(type=7, embed=embed, components=await queuebuttons(cpg, pgs))
     if "lyrics np" in buttonid:
         await response.respond(type=6)
         try: await lyrics(response)
         except:
             print(traceback.format_exc())
             return
+    return
 
 async def startThreads(client):
     while True:
